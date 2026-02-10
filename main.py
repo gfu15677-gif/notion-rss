@@ -19,7 +19,7 @@ async def main():
             "link": item.get("link", ""),
             "content": html_to_notion_blocks(item.get("content", ""))
         }
-        await add_feed_item_to_notion(notion_item)
+        add_feed_item_to_notion(notion_item)
 
 
 if __name__ == "__main__":
