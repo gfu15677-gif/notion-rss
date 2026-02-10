@@ -31,7 +31,7 @@ def get_feed_urls_from_notion():
     payload = {
         "filter": {
             "property": "Enabled",
-            "checkbox": {"equals": False}
+            "checkbox": {"equals": True}
         }
     }
 
