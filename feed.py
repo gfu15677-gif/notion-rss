@@ -1,6 +1,7 @@
 import feedparser
 import os
 import time
+import requests  # 新增：用于发送飞书消息
 from dotenv import load_dotenv
 from helpers import time_difference
 
@@ -16,6 +17,25 @@ def _parse_struct_time_to_timestamp(st):
     if st:
         return time.mktime(st)
     return 0
+
+def send_feishu_message(text):
+    """直接发送文本消息到飞书"""
+    webhook_url = os.getenv("FEISHU_WEBHOOK")
+    if not webhook_url:
+        print("❌ 环境变量 FEISHU_WEBHOOK 未设置")
+        return
+    payload = {
+        "msg_type": "text",
+        "content": {"text": text}
+    }
+    try:
+        resp = requests.post(webhook_url, json=payload)
+        if resp.status_code == 200:
+            print("✅ 飞书消息发送成功")
+        else:
+            print(f"❌ 飞书消息发送失败: {resp.status_code} - {resp.text}")
+    except Exception as e:
+        print(f"❌ 飞书请求异常: {e}")
 
 def get_new_feed_items_from(feed_url):
     print(f"正在抓取 RSS: {feed_url}")
@@ -60,14 +80,18 @@ def get_new_feed_items():
     )
     print(f"总共 {len(all_new_feed_items)} 条新文章待推送")
 
-    # 如果没有新文章，生成一条测试消息（可选）
-    if not all_new_feed_items:
-        print("⚠️ 没有新文章，生成一条测试消息强制推送")
-        all_new_feed_items.append({
-            "title": "【测试】外骨骼日报推送验证",
-            "link": "https://github.com/gfu15677-gif/notion-rss",
-            "content": "这是一条由 GitHub Actions 自动生成的测试消息，用于验证飞书推送是否正常。",
-            "published_parsed": time.localtime()
-        })
+    # === 强制发送一条测试消息（用于验证飞书推送） ===
+    test_message = "【调试】GitHub Actions 正在运行，如果你看到这条消息，说明飞书推送通道正常！"
+    send_feishu_message(test_message)
+    # =============================================
+
+    # 如果没有新文章，生成一条测试新闻（可选项，先不启用）
+    # if not all_new_feed_items:
+    #     all_new_feed_items.append({
+    #         "title": "【测试】外骨骼日报推送验证",
+    #         "link": "https://github.com/gfu15677-gif/notion-rss",
+    #         "content": "这是一条由 GitHub Actions 自动生成的测试消息，用于验证飞书推送是否正常。",
+    #         "published_parsed": time.localtime()
+    #     })
 
     return all_new_feed_items
