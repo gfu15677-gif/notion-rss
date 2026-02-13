@@ -14,7 +14,7 @@ def get_new_feed_items():
         print("⚠️ 没有新文章，生成一条测试消息强制推送")
         all_new_feed_items.append({
             "title": "【测试】外骨骼日报推送验证",
-            "link": "https://github.com/你的用户名/notion-rss",
+            "link": "https://github.com/gfu15677-gif/notion-rss",
             "content": "这是一条由 GitHub Actions 自动生成的测试消息，用于验证飞书推送是否正常。",
             "published_parsed": time.localtime()  # 当前时间
         })
