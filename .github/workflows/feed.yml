@@ -2,7 +2,7 @@ name: Get Feed
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '0 * * * *'        # 每小时的第0分钟运行
   workflow_dispatch:
 
 jobs:
@@ -24,4 +24,5 @@ jobs:
       - name: Run feed
         env:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          RUN_FREQUENCY: 3600
         run: python main.py
