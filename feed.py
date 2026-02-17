@@ -9,7 +9,7 @@ load_dotenv()
 
 RUN_FREQUENCY = int(os.getenv("RUN_FREQUENCY", "3600"))
 
-# ===== 外骨骼 RSS 源（已经包含微信/抖音/B站等 RSSHub 链接）=====
+# ===== 外骨骼 RSS 源（包含微信/抖音/B站/微博 RSSHub 链接）=====
 RSS_URLS = [
     "https://news.google.com/rss/search?q=exoskeleton+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC%E6%9C%BA%E5%99%A8%E4%BA%BA+OR+Ekso+OR+ReWalk+OR+Sarcos+OR+Cyberdyne+OR+%E8%BF%88%E5%AE%9D%E6%99%BA%E8%83%BD+OR+%E8%A7%86%E6%BA%90%E8%82%A1%E4%BB%BD+OR+%E5%82%85%E5%88%A9%E5%8F%B6&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
     "https://www.therobotreport.com/feed/",
@@ -35,7 +35,8 @@ def _parse_struct_time_to_timestamp(st):
     return 0
 
 def send_feishu_message(text):
-    webhook_url = os.getenv("FEISHU_WEBHOOK")  # 注意：这里是 FEISHU_WEBHOOK，不是 _URL
+    # 统一使用 FEISHU_WEBHOOK（不带 _URL）
+    webhook_url = os.getenv("FEISHU_WEBHOOK")
     if not webhook_url:
         print("❌ 环境变量 FEISHU_WEBHOOK 未设置")
         return
@@ -95,7 +96,7 @@ def get_new_feed_items():
     )
     print(f"总共 {len(all_new_feed_items)} 条新文章待推送")
 
-    # 这里不再调用 Notion，只做飞书推送（每条单独发）
+    # 只推送飞书，不涉及 Notion
     for item in all_new_feed_items:
         text = f"{item['title']}\n{item['link']}"
         send_feishu_message(text)
