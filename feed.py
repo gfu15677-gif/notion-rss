@@ -9,24 +9,38 @@ load_dotenv()
 
 RUN_FREQUENCY = int(os.getenv("RUN_FREQUENCY", "3600"))
 
-# ===== 外骨骼 RSS 源（包含微信/抖音/B站/微博 RSSHub 链接）=====
+# ===== 外骨骼 RSS 源（覆盖国内外新闻、社交媒体）=====
+# 注意：以下 RSSHub 链接（https://rsshub.app/...）需要自行部署 RSSHub 才能稳定使用
+# 如果你没有部署 RSSHub，可以暂时注释掉或删除它们
 RSS_URLS = [
-    "https://news.google.com/rss/search?q=exoskeleton+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC%E6%9C%BA%E5%99%A8%E4%BA%BA+OR+Ekso+OR+ReWalk+OR+Sarcos+OR+Cyberdyne+OR+%E8%BF%88%E5%AE%9D%E6%99%BA%E8%83%BD+OR+%E8%A7%86%E6%BA%90%E8%82%A1%E4%BB%BD+OR+%E5%82%85%E5%88%A9%E5%8F%B6&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+    # --- 国内主流新闻源 ---
+    "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC%E6%9C%BA%E5%99%A8%E4%BA%BA+OR+%E8%BF%88%E5%AE%9D%E6%99%BA%E8%83%BD+OR+%E8%A7%86%E6%BA%90%E8%82%A1%E4%BB%BD+OR+%E5%82%85%E5%88%A9%E5%8F%B6&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+    "https://36kr.com/feed",                                 # 36氪（科技新闻）
+    "https://www.huxiu.com/rss/",                            # 虎嗅（深度商业）
+    "https://rss.sina.com.cn/tech/rollnews.xml",             # 新浪科技
+    "https://rss.qq.com/tech/rollnews.xml",                  # 腾讯科技
+    "https://www.thepaper.cn/rss/news.xml",                  # 澎湃新闻（综合）
+    "https://www.guancha.cn/feed/news.xml",                  # 观察者网
+    "http://www.people.com.cn/rss/politics.xml",             # 人民网（时政科技）
+
+    # --- 国内社交媒体（通过 RSSHub）---
+    # 注意：需要自己部署 RSSHub，否则这些链接可能无法抓取
+    "https://rsshub.app/wechat/search/外骨骼",               # 微信公众号搜索
+    "https://rsshub.app/weibo/search/外骨骼",                # 微博搜索
+    "https://rsshub.app/bilibili/vsearch/外骨骼",            # B站视频搜索
+    "https://rsshub.app/douyin/search/外骨骼",               # 抖音搜索
+
+    # --- 国外行业媒体 ---
     "https://www.therobotreport.com/feed/",
     "https://roboticsandautomationnews.com/feed/",
     "https://www.roboticsbusinessreview.com/feed/",
+    "https://techcrunch.com/tag/exoskeleton/feed/",
+    "http://export.arxiv.org/rss/cs.RO",                     # arXiv 机器人学论文
+
+    # --- 国外公司官方博客 ---
     "https://eksobionics.com/feed/",
     "https://rewalk.com/feed/",
     "https://www.sarcos.com/feed/",
-    "https://36kr.com/feed",
-    "https://www.huxiu.com/rss/",
-    "https://rss.sina.com.cn/tech/rollnews.xml",
-    "http://export.arxiv.org/rss/cs.RO",
-    "https://techcrunch.com/tag/exoskeleton/feed/",
-    "https://rsshub.app/wechat/search/外骨骼",
-    "https://rsshub.app/douyin/search/外骨骼",
-    "https://rsshub.app/bilibili/vsearch/外骨骼",
-    "https://rsshub.app/weibo/search/外骨骼",
 ]
 
 def _parse_struct_time_to_timestamp(st):
@@ -35,7 +49,6 @@ def _parse_struct_time_to_timestamp(st):
     return 0
 
 def send_feishu_message(text):
-    # 统一使用 FEISHU_WEBHOOK（不带 _URL）
     webhook_url = os.getenv("FEISHU_WEBHOOK")
     if not webhook_url:
         print("❌ 环境变量 FEISHU_WEBHOOK 未设置")
@@ -96,7 +109,7 @@ def get_new_feed_items():
     )
     print(f"总共 {len(all_new_feed_items)} 条新文章待推送")
 
-    # 只推送飞书，不涉及 Notion
+    # 每条单独推送飞书
     for item in all_new_feed_items:
         text = f"{item['title']}\n{item['link']}"
         send_feishu_message(text)
