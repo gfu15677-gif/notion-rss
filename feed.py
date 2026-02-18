@@ -9,28 +9,37 @@ load_dotenv()
 
 RUN_FREQUENCY = int(os.getenv("RUN_FREQUENCY", "3600"))
 
-# ===== 外骨骼 RSS 源（你的原有源列表）=====
+# ===== 外骨骼 RSS 源（按相关性排序，技术研发优先）=====
 RSS_URLS = [
-    "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC%E6%9C%BA%E5%99%A8%E4%BA%BA+OR+%E8%BF%88%E5%AE%9D%E6%99%BA%E8%83%BD+OR+%E8%A7%86%E6%BA%90%E8%82%A1%E4%BB%BD+OR+%E5%82%85%E5%88%A9%E5%8F%B6&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+    # 1. 国外专业机器人媒体（核心信源）
+    "https://www.therobotreport.com/feed/",
+    "https://roboticsandautomationnews.com/feed/",
+    "https://www.roboticsbusinessreview.com/feed/",
+    "https://techcrunch.com/tag/exoskeleton/feed/",
+    "https://spectrum.ieee.org/feeds/robotics.rss",               # IEEE Spectrum 机器人
+
+    # 2. 学术论文预印本（前沿研究）
+    "http://export.arxiv.org/rss/cs.RO",                           # arXiv 机器人学
+
+    # 3. 公司官方研发动态（部分可能无 RSS，保留已验证的）
+    "https://eksobionics.com/feed/",
+    "https://rewalk.com/feed/",
+    "https://www.sarcos.com/feed/",
+
+    # 4. Google News 精准关键词搜索（聚焦技术研发）
+    "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%8A%80%E6%9C%AF+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E7%A0%94%E5%8F%91+OR+AI%E6%84%8F%E5%9B%BE%E8%AF%86%E5%88%AB+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E6%AD%A5%E6%80%81%E9%A2%84%E6%B5%8B+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E4%BA%BA%E6%9C%BA%E5%8D%8F%E5%90%8C+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E8%87%AA%E9%80%82%E5%BA%94%E6%8E%A7%E5%88%B6+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E8%BF%90%E5%8A%A8%E6%84%8F%E5%9B%BE+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E8%BD%BB%E9%87%8F%E5%8C%96%E7%94%B5%E6%9C%BA+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+smart+exoskeleton+OR+exoskeleton+intent+recognition&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+
+    # 5. 国内科技媒体（放在后面，减少杂音）
     "https://36kr.com/feed",
     "https://www.huxiu.com/rss/",
     "https://rss.sina.com.cn/tech/rollnews.xml",
     "https://rss.qq.com/tech/rollnews.xml",
     "https://www.thepaper.cn/rss/news.xml",
-    "https://www.guancha.cn/feed/news.xml",
-    "http://www.people.com.cn/rss/politics.xml",
+
+    # 6. RSSHub 社交媒体源（可选，公共实例可能无效，保留但不影响）
     "https://rsshub.app/wechat/search/外骨骼",
     "https://rsshub.app/weibo/search/外骨骼",
     "https://rsshub.app/bilibili/vsearch/外骨骼",
-    "https://rsshub.app/douyin/search/外骨骼",
-    "https://www.therobotreport.com/feed/",
-    "https://roboticsandautomationnews.com/feed/",
-    "https://www.roboticsbusinessreview.com/feed/",
-    "https://techcrunch.com/tag/exoskeleton/feed/",
-    "http://export.arxiv.org/rss/cs.RO",
-    "https://eksobionics.com/feed/",
-    "https://rewalk.com/feed/",
-    "https://www.sarcos.com/feed/",
 ]
 
 def _parse_struct_time_to_timestamp(st):
@@ -99,20 +108,15 @@ def get_new_feed_items():
     )
     print(f"总共 {len(all_new_feed_items)} 条新文章待推送（去重前）")
 
-    # ===== 新增：去重逻辑 =====
-    # 创建一个字典，键是小写的链接，值是完整的文章信息
+    # 去重逻辑：基于链接（忽略大小写和空格）
     unique_items_dict = {}
     for item in all_new_feed_items:
-        # 将链接转换为小写，并去除首尾空格，这样 https://A.com 和 https://a.com/ 被视为相同
         link_key = item['link'].strip().lower()
-        # 如果这个链接还没出现过，就把它加入字典
         if link_key not in unique_items_dict:
             unique_items_dict[link_key] = item
 
-    # 从字典中取出所有去重后的文章信息
     unique_items = list(unique_items_dict.values())
     print(f"总共 {len(unique_items)} 条新文章待推送（去重后）")
-    # ========================
 
     for item in unique_items:
         text = f"{item['title']}\n{item['link']}"
