@@ -9,61 +9,39 @@ load_dotenv()
 
 RUN_FREQUENCY = int(os.getenv("RUN_FREQUENCY", "3600"))
 
-# ===== 必须包含的关键词（不区分大小写）=====
-# 只有标题或内容中出现以下任意一个词的才推送
-REQUIRED_KEYWORDS = [
-    "外骨骼",
-    "exoskeleton",
-    "机器人",
-    "robotics",
-    "步态",
-    "gait",
-    "助力",
-    "assist",
-    "意图识别",
-    "intent recognition",
-    "人机协同",
-    "human-robot",
-    "自适应控制",
-    "adaptive control",
-    "轻量化",
-    "lightweight",
-    "电机",
-    "motor",
-    "康复",
-    "rehabilitation",
-    "负重",
-    "load-bearing",
-    "髋关节",
-    "hip",
-    "膝关节",
-    "knee",
-]
-
-# ===== RSS 源列表 =====
+# ===== 外骨骼 RSS 源（聚焦国内外深度报告）=====
 RSS_URLS = [
-    # 国外专业机器人媒体（最可靠）
+    # 1. Google News 中文深度报告关键词
+    "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%B7%B1%E5%BA%A6%E6%8A%A5%E5%91%8A+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E8%A1%8C%E4%B8%9A%E7%A0%94%E7%A9%B6+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E4%BA%A7%E4%B8%9A%E9%93%BE+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%8A%95%E8%B5%84%E4%BB%B7%E5%80%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E5%B8%82%E5%9C%BA%E6%A0%BC%E5%B1%80&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+
+    # 2. 国内科技媒体深度频道
+    "https://36kr.com/feed",
+    "https://www.huxiu.com/rss/",
+    "https://www.jiqizhixin.com/rss",            # 机器之心
+    "https://www.leiphone.com/feed",              # 雷锋网
+    "https://www.gg-robot.com/feed",              # 高工机器人
+    "https://www.chinaventure.com.cn/rss",        # 投中网
+
+    # 3. 国外专业机器人媒体（保留，但不再是主力）
     "https://www.therobotreport.com/feed/",
     "https://roboticsandautomationnews.com/feed/",
     "https://www.roboticsbusinessreview.com/feed/",
     "https://techcrunch.com/tag/exoskeleton/feed/",
     "https://spectrum.ieee.org/feeds/robotics.rss",
 
-    # 学术论文
+    # 4. 学术论文
     "http://export.arxiv.org/rss/cs.RO",
 
-    # 公司官方
+    # 5. 公司官方（保留）
     "https://eksobionics.com/feed/",
     "https://rewalk.com/feed/",
     "https://www.sarcos.com/feed/",
 
-    # Google News 精准搜索（包含技术关键词）
-    "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%8A%80%E6%9C%AF+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E7%A0%94%E5%8F%91+OR+AI%E6%84%8F%E5%9B%BE%E8%AF%86%E5%88%AB+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E6%AD%A5%E6%80%81%E9%A2%84%E6%B5%8B+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E4%BA%BA%E6%9C%BA%E5%8D%8F%E5%90%8C+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E8%87%AA%E9%80%82%E5%BA%94%E6%8E%A7%E5%88%B6+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E8%BF%90%E5%8A%A8%E6%84%8F%E5%9B%BE+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+%E8%BD%BB%E9%87%8F%E5%8C%96%E7%94%B5%E6%9C%BA+%E5%A4%96%E9%AA%A8%E9%AA%BC+OR+smart+exoskeleton+OR+exoskeleton+intent+recognition&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
-
-    # 国内科技媒体（噪音源，必须配合关键词过滤）
-    "https://36kr.com/feed",
-    "https://www.huxiu.com/rss/",
-    "https://rss.sina.com.cn/tech/rollnews.xml",
+    # 6. RSSHub 国内社交媒体（尝试抓取公众号文章）
+    "https://rsshub.app/wechat/search/外骨骼%20深度报告",
+    "https://rsshub.app/wechat/search/程天科技",
+    "https://rsshub.app/wechat/search/傲鲨智能",
+    "https://rsshub.app/wechat/search/傅利叶智能",
 ]
 
 def _parse_struct_time_to_timestamp(st):
@@ -90,11 +68,16 @@ def send_feishu_message(text):
         print(f"❌ 飞书请求异常: {e}")
 
 def contains_keyword(text):
-    """检查文本是否包含任一必需关键词（不区分大小写）"""
+    """检查文本是否包含外骨骼相关关键词（不区分大小写）"""
     if not text:
         return False
     text_lower = text.lower()
-    for kw in REQUIRED_KEYWORDS:
+    keywords = [
+        "外骨骼", "exoskeleton", "程天科技", "傲鲨智能", "傅利叶", "大艾",
+        "迈宝智能", "肯綮科技", "智元研究院", "康复机器人", "助力机器人",
+        "行业报告", "深度报告", "产业链", "投融资", "商业化", "市场格局"
+    ]
+    for kw in keywords:
         if kw.lower() in text_lower:
             return True
     return False
@@ -123,9 +106,9 @@ def get_new_feed_items_from(feed_url):
             continue
 
         title = item.get("title", "")
-        content = item.get("summary", "")  # 有的源用summary
+        content = item.get("summary", "") or item.get("description", "")
 
-        # 关键词过滤：只有标题或内容包含所需关键词才保留
+        # 关键词过滤：只有标题或内容包含相关关键词才保留
         if not (contains_keyword(title) or contains_keyword(content)):
             continue
 
