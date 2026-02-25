@@ -9,20 +9,19 @@ load_dotenv()
 
 RUN_FREQUENCY = int(os.getenv("RUN_FREQUENCY", "3600"))
 
-# ===== 外骨骼 RSS 源（聚焦国内外深度报告）=====
+# ===== 外骨骼 RSS 源（已移除杂音源雷锋网）=====
 RSS_URLS = [
     # 1. Google News 中文深度报告关键词
     "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%B7%B1%E5%BA%A6%E6%8A%A5%E5%91%8A+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E8%A1%8C%E4%B8%9A%E7%A0%94%E7%A9%B6+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E4%BA%A7%E4%B8%9A%E9%93%BE+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%8A%95%E8%B5%84%E4%BB%B7%E5%80%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E5%B8%82%E5%9C%BA%E6%A0%BC%E5%B1%80&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
 
-    # 2. 国内科技媒体深度频道
-    "https://36kr.com/feed",
-    "https://www.huxiu.com/rss/",
-    "https://www.jiqizhixin.com/rss",            # 机器之心
-    "https://www.leiphone.com/feed",              # 雷锋网
-    "https://www.gg-robot.com/feed",              # 高工机器人
-    "https://www.chinaventure.com.cn/rss",        # 投中网
+    # 2. 国内科技媒体深度频道（保留机器之心、高工机器人等专业媒体）
+    "https://36kr.com/feed",                           # 36kr（保留，虽有杂音但关键词过滤可处理）
+    "https://www.huxiu.com/rss/",                      # 虎嗅
+    "https://www.jiqizhixin.com/rss",                   # 机器之心
+    "https://www.gg-robot.com/feed",                    # 高工机器人
+    "https://www.chinaventure.com.cn/rss",              # 投中网（投融资）
 
-    # 3. 国外专业机器人媒体（保留，但不再是主力）
+    # 3. 国外专业机器人媒体
     "https://www.therobotreport.com/feed/",
     "https://roboticsandautomationnews.com/feed/",
     "https://www.roboticsbusinessreview.com/feed/",
@@ -32,16 +31,18 @@ RSS_URLS = [
     # 4. 学术论文
     "http://export.arxiv.org/rss/cs.RO",
 
-    # 5. 公司官方（保留）
+    # 5. 公司官方
     "https://eksobionics.com/feed/",
     "https://rewalk.com/feed/",
     "https://www.sarcos.com/feed/",
 
-    # 6. RSSHub 国内社交媒体（尝试抓取公众号文章）
+    # 6. RSSHub 国内社交媒体（针对企业名称和深度报告）
     "https://rsshub.app/wechat/search/外骨骼%20深度报告",
     "https://rsshub.app/wechat/search/程天科技",
     "https://rsshub.app/wechat/search/傲鲨智能",
     "https://rsshub.app/wechat/search/傅利叶智能",
+    "https://rsshub.app/wechat/search/大艾机器人",
+    "https://rsshub.app/wechat/search/迈宝智能",
 ]
 
 def _parse_struct_time_to_timestamp(st):
@@ -75,7 +76,9 @@ def contains_keyword(text):
     keywords = [
         "外骨骼", "exoskeleton", "程天科技", "傲鲨智能", "傅利叶", "大艾",
         "迈宝智能", "肯綮科技", "智元研究院", "康复机器人", "助力机器人",
-        "行业报告", "深度报告", "产业链", "投融资", "商业化", "市场格局"
+        "行业报告", "深度报告", "产业链", "投融资", "商业化", "市场格局",
+        "步态", "意图识别", "人机协同", "轻量化", "电机", "驱动", "传感器",
+        "控制算法", "脑机接口", "康复训练", "负重", "髋关节", "膝关节"
     ]
     for kw in keywords:
         if kw.lower() in text_lower:
