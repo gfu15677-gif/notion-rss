@@ -9,17 +9,17 @@ load_dotenv()
 
 RUN_FREQUENCY = int(os.getenv("RUN_FREQUENCY", "3600"))
 
-# ===== 外骨骼 RSS 源（已移除杂音源雷锋网）=====
+# ===== 外骨骼 RSS 源（已移除雷锋网等杂音源）=====
 RSS_URLS = [
     # 1. Google News 中文深度报告关键词
     "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%B7%B1%E5%BA%A6%E6%8A%A5%E5%91%8A+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E8%A1%8C%E4%B8%9A%E7%A0%94%E7%A9%B6+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E4%BA%A7%E4%B8%9A%E9%93%BE+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%8A%95%E8%B5%84%E4%BB%B7%E5%80%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E5%B8%82%E5%9C%BA%E6%A0%BC%E5%B1%80&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
 
-    # 2. 国内科技媒体深度频道（保留机器之心、高工机器人等专业媒体）
-    "https://36kr.com/feed",                           # 36kr（保留，虽有杂音但关键词过滤可处理）
-    "https://www.huxiu.com/rss/",                      # 虎嗅
-    "https://www.jiqizhixin.com/rss",                   # 机器之心
-    "https://www.gg-robot.com/feed",                    # 高工机器人
-    "https://www.chinaventure.com.cn/rss",              # 投中网（投融资）
+    # 2. 国内科技媒体深度频道（保留，但用关键词严格过滤）
+    "https://36kr.com/feed",
+    "https://www.huxiu.com/rss/",
+    "https://www.jiqizhixin.com/rss",            # 机器之心
+    "https://www.gg-robot.com/feed",              # 高工机器人
+    "https://www.chinaventure.com.cn/rss",        # 投中网
 
     # 3. 国外专业机器人媒体
     "https://www.therobotreport.com/feed/",
@@ -36,13 +36,10 @@ RSS_URLS = [
     "https://rewalk.com/feed/",
     "https://www.sarcos.com/feed/",
 
-    # 6. RSSHub 国内社交媒体（针对企业名称和深度报告）
-    "https://rsshub.app/wechat/search/外骨骼%20深度报告",
+    # 6. RSSHub 国内社交媒体（只搜企业名+外骨骼）
     "https://rsshub.app/wechat/search/程天科技",
     "https://rsshub.app/wechat/search/傲鲨智能",
     "https://rsshub.app/wechat/search/傅利叶智能",
-    "https://rsshub.app/wechat/search/大艾机器人",
-    "https://rsshub.app/wechat/search/迈宝智能",
 ]
 
 def _parse_struct_time_to_timestamp(st):
@@ -68,22 +65,42 @@ def send_feishu_message(text):
     except Exception as e:
         print(f"❌ 飞书请求异常: {e}")
 
-def contains_keyword(text):
-    """检查文本是否包含外骨骼相关关键词（不区分大小写）"""
-    if not text:
+def should_keep_article(title, content):
+    """
+    判断是否应该保留这篇文章
+    返回 True 表示保留，False 表示丢弃
+    """
+    if not title and not content:
         return False
-    text_lower = text.lower()
-    keywords = [
+
+    text = (title + " " + content).lower()
+
+    # ===== 必须包含的“强相关词” =====
+    strong_keywords = [
         "外骨骼", "exoskeleton", "程天科技", "傲鲨智能", "傅利叶", "大艾",
         "迈宝智能", "肯綮科技", "智元研究院", "康复机器人", "助力机器人",
-        "行业报告", "深度报告", "产业链", "投融资", "商业化", "市场格局",
-        "步态", "意图识别", "人机协同", "轻量化", "电机", "驱动", "传感器",
-        "控制算法", "脑机接口", "康复训练", "负重", "髋关节", "膝关节"
+        "髋关节", "膝关节", "步态", "人机协同", "意图识别", "轻量化",
+        "ekso", "rewalk", "sarcos", "cyberdyne", "hal", "bionics"
     ]
-    for kw in keywords:
-        if kw.lower() in text_lower:
-            return True
-    return False
+
+    # 如果连一个强相关词都没有，直接丢弃
+    has_strong_keyword = any(kw in text for kw in strong_keywords)
+    if not has_strong_keyword:
+        return False
+
+    # ===== 黑名单词（如果出现这些词，大概率是不相关新闻）=====
+    blacklist = [
+        "手机", "汽车", "锂矿", "锂电", "小红书", "电商", "抖音", "快手",
+        "微信", "支付宝", "外卖", "打车", "共享单车", "游戏", "影视",
+        "股票", "基金", "理财", "房价", "地产", "消费", "零售"
+    ]
+
+    # 如果包含黑名单词，丢弃
+    if any(bw in text for bw in blacklist):
+        return False
+
+    # 通过所有检查，保留
+    return True
 
 def get_new_feed_items_from(feed_url):
     print(f"正在抓取 RSS: {feed_url}")
@@ -111,8 +128,8 @@ def get_new_feed_items_from(feed_url):
         title = item.get("title", "")
         content = item.get("summary", "") or item.get("description", "")
 
-        # 关键词过滤：只有标题或内容包含相关关键词才保留
-        if not (contains_keyword(title) or contains_keyword(content)):
+        # 使用新的判断逻辑
+        if not should_keep_article(title, content):
             continue
 
         new_items.append({
