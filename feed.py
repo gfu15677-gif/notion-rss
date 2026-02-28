@@ -2,6 +2,7 @@ import feedparser
 import os
 import time
 import requests
+from urllib.parse import urlparse, parse_qs, urlunparse
 from dotenv import load_dotenv
 from helpers import time_difference
 
@@ -9,17 +10,17 @@ load_dotenv()
 
 RUN_FREQUENCY = int(os.getenv("RUN_FREQUENCY", "3600"))
 
-# ===== 外骨骼 RSS 源（已移除雷锋网等杂音源）=====
+# ===== 外骨骼 RSS 源 =====
 RSS_URLS = [
     # 1. Google News 中文深度报告关键词
     "https://news.google.com/rss/search?q=%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%B7%B1%E5%BA%A6%E6%8A%A5%E5%91%8A+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E8%A1%8C%E4%B8%9A%E7%A0%94%E7%A9%B6+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E4%BA%A7%E4%B8%9A%E9%93%BE+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E6%8A%95%E8%B5%84%E4%BB%B7%E5%80%BC+OR+%E5%A4%96%E9%AA%A8%E9%AA%BC+%E5%B8%82%E5%9C%BA%E6%A0%BC%E5%B1%80&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
 
-    # 2. 国内科技媒体深度频道（保留，但用关键词严格过滤）
+    # 2. 国内科技媒体深度频道
     "https://36kr.com/feed",
     "https://www.huxiu.com/rss/",
-    "https://www.jiqizhixin.com/rss",            # 机器之心
-    "https://www.gg-robot.com/feed",              # 高工机器人
-    "https://www.chinaventure.com.cn/rss",        # 投中网
+    "https://www.jiqizhixin.com/rss",
+    "https://www.gg-robot.com/feed",
+    "https://www.chinaventure.com.cn/rss",
 
     # 3. 国外专业机器人媒体
     "https://www.therobotreport.com/feed/",
@@ -36,7 +37,7 @@ RSS_URLS = [
     "https://rewalk.com/feed/",
     "https://www.sarcos.com/feed/",
 
-    # 6. RSSHub 国内社交媒体（只搜企业名+外骨骼）
+    # 6. RSSHub 国内社交媒体（只搜企业名）
     "https://rsshub.app/wechat/search/程天科技",
     "https://rsshub.app/wechat/search/傲鲨智能",
     "https://rsshub.app/wechat/search/傅利叶智能",
@@ -46,6 +47,19 @@ def _parse_struct_time_to_timestamp(st):
     if st:
         return time.mktime(st)
     return 0
+
+def normalize_url(url):
+    """标准化URL：去除常见追踪参数，如 utm_source, utm_medium, fbclid 等"""
+    try:
+        parsed = urlparse(url)
+        query_params = parse_qs(parsed.query)
+        tracking_params = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid']
+        filtered_params = {k: v for k, v in query_params.items() if k not in tracking_params}
+        new_query = '&'.join([f"{k}={v[0]}" for k, v in filtered_params.items()])
+        new_parsed = parsed._replace(query=new_query)
+        return urlunparse(new_parsed).rstrip('/').lower()
+    except Exception as e:
+        return url.rstrip('/').lower()
 
 def send_feishu_message(text):
     webhook_url = os.getenv("FEISHU_WEBHOOK")
@@ -95,11 +109,9 @@ def should_keep_article(title, content):
         "股票", "基金", "理财", "房价", "地产", "消费", "零售"
     ]
 
-    # 如果包含黑名单词，丢弃
     if any(bw in text for bw in blacklist):
         return False
 
-    # 通过所有检查，保留
     return True
 
 def get_new_feed_items_from(feed_url):
@@ -128,7 +140,6 @@ def get_new_feed_items_from(feed_url):
         title = item.get("title", "")
         content = item.get("summary", "") or item.get("description", "")
 
-        # 使用新的判断逻辑
         if not should_keep_article(title, content):
             continue
 
@@ -151,14 +162,16 @@ def get_new_feed_items():
     all_new_feed_items.sort(
         key=lambda x: _parse_struct_time_to_timestamp(x.get("published_parsed"))
     )
-    print(f"总共 {len(all_new_feed_items)} 条新文章待推送（去重前）")
+    print(f"总共 {len(all_new_feed_items)} 条新文章待处理（去重前）")
 
-    # 去重
+    # 强化去重逻辑：基于标准化后的链接
     unique_items_dict = {}
     for item in all_new_feed_items:
-        link_key = item['link'].strip().lower()
-        if link_key not in unique_items_dict:
-            unique_items_dict[link_key] = item
+        normalized_link = normalize_url(item['link'])
+        if normalized_link not in unique_items_dict:
+            unique_items_dict[normalized_link] = item
+        else:
+            print(f"⏭️ 发现重复链接（已过滤）: {item['title']}")
 
     unique_items = list(unique_items_dict.values())
     print(f"总共 {len(unique_items)} 条新文章待推送（去重后）")
