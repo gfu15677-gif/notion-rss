@@ -2,6 +2,8 @@ import feedparser
 import os
 import time
 import requests
+import json
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs, urlunparse
 from dotenv import load_dotenv
 from helpers import time_difference
@@ -154,6 +156,25 @@ def get_new_feed_items_from(feed_url):
     return new_items
 
 def get_new_feed_items():
+    # --- 加载“记忆”：已推送链接的缓存文件（最近24小时）---
+    cache_file = "/tmp/pushed_links_cache.json"
+    pushed_links = set()
+    try:
+        if os.path.exists(cache_file):
+            with open(cache_file, 'r') as f:
+                data = json.load(f)
+                cutoff_time = datetime.now() - timedelta(hours=24)
+                for link, timestamp_str in data.items():
+                    try:
+                        if datetime.fromisoformat(timestamp_str) > cutoff_time:
+                            pushed_links.add(link)
+                    except:
+                        # 时间格式异常，忽略该条记录
+                        pass
+    except Exception as e:
+        print(f"⚠️ 读取推送缓存失败，将不进行跨周期去重: {e}")
+
+    # --- 常规抓取和单次运行去重 ---
     all_new_feed_items = []
     for feed_url in RSS_URLS:
         feed_items = get_new_feed_items_from(feed_url)
@@ -162,22 +183,41 @@ def get_new_feed_items():
     all_new_feed_items.sort(
         key=lambda x: _parse_struct_time_to_timestamp(x.get("published_parsed"))
     )
-    print(f"总共 {len(all_new_feed_items)} 条新文章待处理（去重前）")
+    print(f"总共 {len(all_new_feed_items)} 条新文章待处理（单次去重前）")
 
-    # 强化去重逻辑：基于标准化后的链接
+    # 单次运行内的去重（基于标准化链接）
     unique_items_dict = {}
     for item in all_new_feed_items:
         normalized_link = normalize_url(item['link'])
         if normalized_link not in unique_items_dict:
             unique_items_dict[normalized_link] = item
         else:
-            print(f"⏭️ 发现重复链接（已过滤）: {item['title']}")
+            print(f"⏭️ 单次运行内发现重复链接（已过滤）: {item['title']}")
 
-    unique_items = list(unique_items_dict.values())
-    print(f"总共 {len(unique_items)} 条新文章待推送（去重后）")
+    # --- 跨周期去重：过滤掉“记忆”里已有的链接 ---
+    truly_new_items = []
+    for item in unique_items_dict.values():
+        normalized_link = normalize_url(item['link'])
+        if normalized_link not in pushed_links:
+            truly_new_items.append(item)
+        else:
+            print(f"⏭️ 跨周期发现已推送过的链接（已过滤）: {item['title']}")
 
-    for item in unique_items:
+    print(f"总共 {len(truly_new_items)} 条新文章待推送（跨周期去重后）")
+
+    # --- 推送新文章，并更新“记忆” ---
+    for item in truly_new_items:
         text = f"{item['title']}\n{item['link']}"
         send_feishu_message(text)
+        # 推送成功后，将链接加入缓存集合
+        pushed_links.add(normalize_url(item['link']))
 
-    return unique_items
+    # --- 保存更新后的“记忆”到文件 ---
+    try:
+        data_to_save = {link: datetime.now().isoformat() for link in pushed_links}
+        with open(cache_file, 'w') as f:
+            json.dump(data_to_save, f)
+    except Exception as e:
+        print(f"⚠️ 保存推送缓存失败，下次运行可能无法跨周期去重: {e}")
+
+    return truly_new_items
