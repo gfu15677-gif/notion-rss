@@ -25,4 +25,5 @@ jobs:
         env:
           FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
           RUN_FREQUENCY: 3600
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}   # 新增这一行
         run: python main.py
